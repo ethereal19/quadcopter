@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f8fafc">
+  <title>ResQNav // Autonomous Navigation & SLAM Mission Control</title>
+  
+  <!-- Modern Clean Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="light-theme">
+  <!-- PRIMARY TOP AVIONICS APPBAR -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <div class="brand-crest">
+        <svg class="crest-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+          <polyline points="2 17 12 22 22 17"></polyline>
+          <polyline points="2 12 12 17 22 12"></polyline>
+        </svg>
+      </div>
+      <div class="brand-titles">
+        <div class="brand-row">
+          <span class="brand-title">ResQNav</span>
+          <span class="brand-badge">MISSION CONTROL // LIGHT UI</span>
+        </div>
+        <span class="brand-subtitle">VIDEO-BASED AUTONOMOUS SEARCH & RESCUE NAVIGATION</span>
+      </div>
+    </div>
+
+    <!-- CENTER TELEMETRY BANNER -->
+    <div class="topbar-center">
+      <div class="telemetry-ticker">
+        <div class="ticker-pill">
+          <span class="pulse-dot green" id="linkPulse"></span>
+          <span class="ticker-label">STATUS</span>
+          <strong id="systemStatusText" class="text-emerald">ACTIVE</strong>
+        </div>
+        <div class="ticker-pill">
+          <span class="ticker-label">FRAME</span>
+          <strong id="tickerFrameNum" class="mono-digit">000 / 000</strong>
+        </div>
+        <div class="ticker-pill">
+          <span class="ticker-label">TRACK QUALITY</span>
+          <strong id="tickerQuality" class="mono-digit text-sky">0.0%</strong>
+        </div>
+        <div class="ticker-pill">
+          <span class="ticker-label">POSE (X, Z)</span>
+          <strong id="tickerPose" class="mono-digit">(+0.00, +0.00) rel</strong>
+        </div>
+        <div class="ticker-pill">
+          <span class="ticker-label">HEADING</span>
+          <strong id="tickerYaw" class="mono-digit">0.0°</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT STATUS & THEME BADGE -->
+    <div class="topbar-right">
+      <span class="theme-pill">☀ Light Mode</span>
+      <span class="port-pill">PORT 5050</span>
+    </div>
+  </header>
+
+  <!-- MAIN VIEWPORT CONTAINER -->
+  <main class="main-container">
+
+    <!-- 1. VIDEO INGESTION & CONTROLS DECK -->
+    <section class="card ingestion-card">
+      <div class="card-header ingestion-header">
+        <div>
+          <span class="overline">INPUT SOURCE</span>
+          <h2>Video Ingestion & Autonomous Playback Deck</h2>
+        </div>
+        <div class="preset-pill-group">
+          <span class="preset-label">Preset Scenarios:</span>
+          <button class="preset-btn active" id="btnSampleCorridor" data-file="sample_recon.mp4">🏢 Corridor Recon</button>
+          <button class="preset-btn" id="btnSampleCurved" data-file="sample_recon_curved.mp4">🏔 S-Curve Avoidance</button>
+          <button class="preset-btn" id="btnSampleLoop" data-file="sample_recon_loop.mp4">🔄 360° Loop Closure</button>
+        </div>
+      </div>
+
+      <div class="ingestion-body">
+        <!-- DRAG AND DROP UPLOAD ZONE -->
+        <div class="upload-dropzone" id="dropZone">
+          <input type="file" id="videoFileInput" accept=".mp4,.avi,.mov,.mkv,.webm" style="display:none;">
+          <div class="dropzone-content">
+            <div class="upload-icon-circle">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+              </svg>
+            </div>
+            <div>
+              <strong>Drag & Drop your Robot-POV Video here</strong>
+              <p>Supports MP4, AVI, MOV, MKV, WEBM — or <span class="browse-link" id="browseLink">click to browse</span></p>
+            </div>
+          </div>
+          <div class="upload-meta-strip" id="uploadStatusText">Ready for custom video upload</div>
+        </div>
+
+        <!-- VIDEO PLAYBACK CONTROLS -->
+        <div class="playback-controls-deck">
+          <div class="video-meta-grid">
+            <div class="meta-item">
+              <span class="meta-label">CURRENT VIDEO</span>
+              <strong id="metaVideoName" class="meta-val">sample_recon.mp4</strong>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">RESOLUTION</span>
+              <strong id="metaResolution" class="meta-val">640 × 480</strong>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">FRAME RATE</span>
+              <strong id="metaFps" class="meta-val">25.0 FPS</strong>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">TOTAL FRAMES</span>
+              <strong id="metaTotalFrames" class="meta-val">120</strong>
+            </div>
+          </div>
+
+          <div class="playback-actions-row">
+            <button class="btn btn-primary" id="btnPlayPause">
+              <span id="playIcon">▶</span> <span id="playText">Play Trajectory</span>
+            </button>
+            <button class="btn btn-secondary" id="btnStep">⏭ Step Frame</button>
+            <button class="btn btn-secondary" id="btnReset">↺ Reset</button>
+            
+            <div class="speed-selector">
+              <label for="speedSelect">Speed:</label>
+              <select id="speedSelect">
+                <option value="0.5">0.5×</option>
+                <option value="1.0" selected>1.0×</option>
+                <option value="2.0">2.0×</option>
+                <option value="4.0">4.0×</option>
+                <option value="8.0">Max</option>
+              </select>
+            </div>
+
+            <!-- SCRUBBER PROGRESS BAR -->
+            <div class="progress-wrap">
+              <input type="range" id="frameScrubber" min="0" max="100" value="0" class="slider-scrubber">
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. FOUR PRIMARY METRICS CARDS -->
+    <section class="metrics-grid">
+      <!-- Metric 1: Tracking Quality -->
+      <div class="metric-card">
+        <div class="metric-card-top">
+          <span class="metric-label">VISUAL TRACKING QUALITY</span>
+          <span class="badge badge-emerald" id="gradeBadge">EXCELLENT</span>
+        </div>
+        <div class="metric-val-wrap">
+          <strong class="metric-val mono-digit" id="metricQuality">0.0%</strong>
+          <span class="metric-sub-label">Confidence</span>
+        </div>
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" id="qualityBar" style="width: 0%;"></div>
+        </div>
+        <div class="metric-card-bottom">
+          <span>Inliers: <b id="subInliers" class="mono-digit">0</b></span>
+          <span>Ratio: <b id="subInlierRatio" class="mono-digit">0.0%</b></span>
+        </div>
+      </div>
+
+      <!-- Metric 2: Camera Pose -->
+      <div class="metric-card">
+        <div class="metric-card-top">
+          <span class="metric-label">ESTIMATED CAMERA POSE</span>
+          <span class="badge badge-sky">ARBITRARY SCALE</span>
+        </div>
+        <div class="metric-val-wrap">
+          <strong class="metric-val mono-digit" id="metricPoseZ">+0.00 rel</strong>
+          <span class="metric-sub-label">Forward Z-Axis</span>
+        </div>
+        <div class="metric-row-split">
+          <div>Lateral X: <b id="subPoseX" class="mono-digit">+0.00</b></div>
+          <div>Altitude Y: <b id="subPoseY" class="mono-digit">+0.00</b></div>
+        </div>
+        <div class="metric-card-bottom">
+          <span>Heading Yaw: <b id="subPoseYaw" class="mono-digit">0.0°</b></span>
+          <span class="text-muted">GPS-Denied</span>
+        </div>
+      </div>
+
+      <!-- Metric 3: Active Visual Landmarks -->
+      <div class="metric-card">
+        <div class="metric-card-top">
+          <span class="metric-label">FEATURE LANDMARKS</span>
+          <span class="badge badge-amber" id="surveyBadge">★ SURVEY DATUM ACTIVE</span>
+        </div>
+        <div class="metric-val-wrap">
+          <strong class="metric-val mono-digit" id="metricPersistentTracks">0</strong>
+          <span class="metric-sub-label">Active Track IDs (#TRK)</span>
+        </div>
+        <div class="metric-row-split">
+          <div>Detected: <b id="subDetectedFeatures" class="mono-digit">0</b></div>
+          <div>Matched: <b id="subMatchedFeatures" class="mono-digit">0</b></div>
+        </div>
+        <div class="metric-card-bottom">
+          <span>RANSAC Verified: <b id="subRansacVerified" class="mono-digit text-emerald">YES</b></span>
+          <span>Survey Visible: <b id="subSurveyVisible" class="mono-digit">1</b></span>
+        </div>
+      </div>
+
+      <!-- Metric 4: Visual SLAM Loop Closure -->
+      <div class="metric-card">
+        <div class="metric-card-top">
+          <span class="metric-label">VISUAL SLAM & POSE GRAPH</span>
+          <span class="badge badge-purple" id="slamStatusBadge">OPTIMIZED</span>
+        </div>
+        <div class="metric-val-wrap">
+          <strong class="metric-val mono-digit" id="metricLoops">0</strong>
+          <span class="metric-sub-label">Loop Closures Verified</span>
+        </div>
+        <div class="metric-row-split">
+          <div>Keyframes: <b id="subKeyframes" class="mono-digit">0</b></div>
+          <div>Loop Edges: <b id="subLoopEdges" class="mono-digit">0</b></div>
+        </div>
+        <div class="metric-card-bottom">
+          <span>Huber Loss: <b class="text-emerald">CONVERGED</b></span>
+          <span>SE(2) Drift: <b id="subDriftStatus" class="mono-digit">CORRECTED</b></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. MAIN NAVIGATION WORKSPACES: 2x2 PANELS -->
+    <div class="panels-grid">
+
+      <!-- ================= PANEL A: VIDEO & LANDMARK TRACKING ================= -->
+      <div class="card panel-card">
+        <div class="card-header">
+          <div class="header-title-wrap">
+            <span class="panel-tag">PANEL A</span>
+            <h3>Visual Landmark Tracking & Geometric Verification</h3>
+          </div>
+          <div class="legend-pills">
+            <span class="legend-pill pill-auto">■ Cyan: #TRK Auto Keypoints</span>
+            <span class="legend-pill pill-survey">★ Gold: Surveyed Datum Reticle</span>
+          </div>
+        </div>
+
+        <div class="panel-body">
+          <div class="video-display-wrap">
+            <img id="annotatedVideoImg" alt="Live Navigation Feed" src="" class="video-feed-img">
+            <div class="camera-hud-overlay top-left" id="hudStatusPill">STATUS: TRACKING_OK</div>
+            <div class="camera-hud-overlay top-right" id="hudFeatureCount">FEAT: 0 | INL: 0</div>
+            <div class="camera-hud-overlay bottom-left" id="hudFrameFps">FRAME: 000 | 25.0 FPS</div>
+            <div class="camera-hud-overlay bottom-right" id="hudPoseOverlay">X: +0.00 | Z: +0.00</div>
+          </div>
+
+          <div class="feature-metrics-strip">
+            <div class="strip-item">
+              <span>Geometric Verification:</span>
+              <b class="text-emerald">Essential Matrix 5-Point RANSAC</b>
+            </div>
+            <div class="strip-item">
+              <span>Distinction:</span>
+              <b>Surveyed Datum (Real-World Metric) vs Auto Tracks (Unanchored)</b>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= PANEL B: BREADCRUMB NAVIGATION ================= -->
+      <div class="card panel-card">
+        <div class="card-header">
+          <div class="header-title-wrap">
+            <span class="panel-tag">PANEL B</span>
+            <h3>Breadcrumb Navigation & Waypoint System</h3>
+          </div>
+          <div class="header-actions">
+            <button class="btn btn-sm btn-outline" id="btnAddManualWp">+ Mark Waypoint</button>
+            <button class="btn btn-sm btn-outline" id="btnDownloadCsv">⬇ Export CSV</button>
+            <button class="btn btn-sm btn-outline" id="btnSaveSqlite">💾 Save SQLite</button>
+          </div>
+        </div>
+
+        <div class="panel-body">
+          <!-- SCIENTIFIC SCALE AMBIGUITY NOTICE -->
+          <div class="callout-box warning-callout">
+            <span class="callout-icon">⚠</span>
+            <div>
+              <strong>CRITICAL SCIENTIFIC NOTICE: MONOCULAR SCALE AMBIGUITY</strong>
+              <p>Trajectory coordinates are in arbitrary relative units, NOT metric metres. Monocular visual odometry cannot resolve absolute physical scale without external sensor calibration (wheel encoders, IMU, or surveyed benchmarks).</p>
+            </div>
+          </div>
+
+          <!-- BREADCRUMB 2D CANVAS -->
+          <div class="canvas-container">
+            <canvas id="breadcrumbCanvas" width="600" height="420" class="hud-canvas"></canvas>
+            <div class="canvas-legend">
+              <span class="canvas-legend-item"><span class="dot-legend dot-sky"></span> Camera Trajectory</span>
+              <span class="canvas-legend-item"><span class="dot-legend dot-green"></span> Origin (0,0)</span>
+              <span class="canvas-legend-item"><span class="dot-legend dot-amber"></span> Rover Pose</span>
+              <span class="canvas-legend-item"><span class="dot-legend dot-purple"></span> Waypoints (#WP)</span>
+            </div>
+          </div>
+
+          <!-- WAYPOINT TABLE MINI -->
+          <div class="table-container mini-table">
+            <table class="data-table" id="waypointTable">
+              <thead>
+                <tr>
+                  <th>WP ID</th>
+                  <th>X (rel)</th>
+                  <th>Z (rel)</th>
+                  <th>Yaw</th>
+                  <th>Timestamp</th>
+                  <th>Type</th>
+                </tr>
+              </thead>
+              <tbody id="waypointTableBody">
+                <tr><td colspan="6" class="text-center text-muted">No waypoints logged yet</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= PANEL C: VISUAL SLAM & LOOP CLOSURE ================= -->
+      <div class="card panel-card">
+        <div class="card-header">
+          <div class="header-title-wrap">
+            <span class="panel-tag">PANEL C</span>
+            <h3>Visual SLAM & SE(2) Pose-Graph Optimization</h3>
+          </div>
+          <div class="legend-pills">
+            <span class="legend-pill pill-drift">-- Orange: Drifted Odometry</span>
+            <span class="legend-pill pill-opt">━ Blue: Optimized SLAM</span>
+            <span class="legend-pill pill-loop">━ Green: Loop Edges</span>
+          </div>
+        </div>
+
+        <div class="panel-body">
+          <!-- SLAM COMPARISON 2D CANVAS -->
+          <div class="canvas-container">
+            <canvas id="slamCanvas" width="600" height="420" class="hud-canvas"></canvas>
+          </div>
+
+          <!-- LOOP CLOSURES AUDIT LIST -->
+          <div class="loop-events-deck">
+            <div class="loop-events-header">
+              <strong>Verified Loop Closures & RANSAC Consistency</strong>
+              <span class="text-muted" id="loopCountNotice">0 events verified</span>
+            </div>
+            <div class="table-container mini-table">
+              <table class="data-table" id="loopTable">
+                <thead>
+                  <tr>
+                    <th>From KF</th>
+                    <th>To KF</th>
+                    <th>Inliers</th>
+                    <th>Confidence</th>
+                    <th>Verification</th>
+                  </tr>
+                </thead>
+                <tbody id="loopTableBody">
+                  <tr><td colspan="5" class="text-center text-muted">No loop closures detected yet. Run 360° Loop scenario.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= PANEL D: OCCUPANCY GRID & A* PATH ================= -->
+      <div class="card panel-card">
+        <div class="card-header">
+          <div class="header-title-wrap">
+            <span class="panel-tag">PANEL D</span>
+            <h3>2D Occupancy Grid Mapping & A* Path Planning</h3>
+          </div>
+          <div class="header-actions">
+            <span class="badge badge-emerald" id="astarStatusBadge">PATH FOUND</span>
+          </div>
+        </div>
+
+        <div class="panel-body">
+          <div class="canvas-container">
+            <canvas id="gridCanvas" width="600" height="420" class="hud-canvas"></canvas>
+            <div class="canvas-legend">
+              <span class="canvas-legend-item"><span class="box-legend box-white"></span> Free Space (0)</span>
+              <span class="canvas-legend-item"><span class="box-legend box-slate"></span> Occupied (1)</span>
+              <span class="canvas-legend-item"><span class="box-legend box-gray"></span> Unknown (-1)</span>
+              <span class="canvas-legend-item"><span class="dot-legend dot-blue"></span> A* Optimal Path</span>
+            </div>
+          </div>
+
+          <!-- A* PATH PLANNING CONTROLS -->
+          <div class="planner-controls-strip">
+            <div class="coord-input-group">
+              <label>Start (Row, Col):</label>
+              <input type="number" id="startRow" value="35" class="coord-input">
+              <input type="number" id="startCol" value="20" class="coord-input">
+            </div>
+            <div class="coord-input-group">
+              <label>Goal (Row, Col):</label>
+              <input type="number" id="goalRow" value="5" class="coord-input">
+              <input type="number" id="goalCol" value="20" class="coord-input">
+            </div>
+            <button class="btn btn-sm btn-primary" id="btnReplanPath">⚡ Re-Plan Path</button>
+            <div class="path-stat-pill">
+              Length: <b id="pathLengthVal" class="mono-digit">0 steps</b>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-left">
+      <strong>ResQNav Autonomous Ground Vehicle System</strong> // Video-Driven Monocular Visual Odometry, Landmark Tracking & SLAM
+    </div>
+    <div class="footer-right">
+      <span>Dedicated Light UI: <b>http://localhost:5050</b></span>
+      <span class="separator">|</span>
+      <span>Tested with OpenCV, NumPy, SciPy Huber Least-Squares</span>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

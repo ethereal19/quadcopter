@@ -1,0 +1,10 @@
+# ResQNav & Autonomous Ground Vehicle Dependencies
+numpy>=1.26,<3
+opencv-python>=4.8,<6
+matplotlib>=3.8
+streamlit>=1.30
+pytest>=8.0
+
+# Optional Neural Perception (BiSeNetV2 / YOLOv8)
+torch>=2.6,<3
+ultralytics>=8.3,<9

@@ -1,0 +1,634 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#07090e">
+  <title>ResQNav // Tactical Ground Control Station</title>
+  
+  <!-- Precision Mission Control Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="/styles.css?v=22">
+</head>
+<body class="tactical-hud">
+<div class="app-shell">
+  <!-- PRIMARY COMMAND HEADER -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <div class="brand">
+        <div class="brand-crest">
+          <svg class="crest-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+            <polyline points="2 17 12 22 22 17"></polyline>
+            <polyline points="2 12 12 17 22 12"></polyline>
+          </svg>
+          <span class="crest-code">RQN</span>
+        </div>
+        <div class="brand-info">
+          <div class="brand-title">
+            <strong>ResQNav</strong>
+            <span class="system-tag">RQN-01 // TACTICAL GCS</span>
+          </div>
+          <span class="sub-callsign">OFF-ROAD AUTONOMOUS RECONNAISSANCE</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- CENTER TELEMETRY TELEMETRICS -->
+    <div class="topbar-center">
+      <div class="telemetry-bar">
+        <div class="hud-pill" id="hudLinkPill">
+          <span class="indicator-pulse" id="linkPulse"></span>
+          <span class="hud-pill-label">LINK</span>
+          <b id="vehicleStatus">RQN-01 OFFLINE</b>
+        </div>
+        <div class="hud-pill">
+          <span class="hud-pill-label">MISSION UTC</span>
+          <b id="missionClock" class="mono-digit">00:00:00</b>
+        </div>
+        <div class="hud-pill d-none-mobile">
+          <span class="hud-pill-label">LATENCY</span>
+          <b id="hudLatency" class="mono-digit">-- ms</b>
+        </div>
+        <div class="hud-pill d-none-mobile">
+          <span class="hud-pill-label">DRIVE MODE</span>
+          <b id="hudDriveMode" class="text-accent-cyan">AUTO-NAV</b>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT EMERGENCY ACTUATOR -->
+    <div class="topbar-right">
+      <button id="emergencyButton" class="emergency-actuator" title="Engage Emergency Motor Brake [ESC]">
+        <div class="actuator-stripes"></div>
+        <div class="actuator-content">
+          <span class="hazard-icon">⚠</span>
+          <span class="actuator-label">EMERGENCY STOP</span>
+          <kbd class="hotkey-badge">ESC</kbd>
+        </div>
+      </button>
+    </div>
+  </header>
+
+  <!-- TACTICAL NAVIGATION SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-section-title">MISSION MODES</div>
+    <nav class="nav-stack">
+      <button class="nav-item active" data-page="dashboard" id="navDashboard">
+        <div class="nav-icon-wrap">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7"></rect>
+            <rect x="14" y="3" width="7" height="7"></rect>
+            <rect x="14" y="14" width="7" height="7"></rect>
+            <rect x="3" y="14" width="7" height="7"></rect>
+          </svg>
+        </div>
+        <div class="nav-text">
+          <span class="nav-primary">Perception & Navigation</span>
+          <span class="nav-sub">Vision, A*, Safety Radar</span>
+        </div>
+        <span class="nav-hotkey">1</span>
+      </button>
+
+      <button class="nav-item" data-page="map" id="navMap">
+        <div class="nav-icon-wrap">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon>
+            <line x1="8" y1="2" x2="8" y2="18"></line>
+            <line x1="16" y1="6" x2="16" y2="22"></line>
+          </svg>
+        </div>
+        <div class="nav-text">
+          <span class="nav-primary">Geospatial Local Map</span>
+          <span class="nav-sub">Satellite VO Overlay</span>
+        </div>
+        <span class="nav-hotkey">2</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section-title">QUICK ACTUATORS</div>
+    <div class="sidebar-actions">
+      <button id="openVO" class="hud-button-vo">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+        <span>Open Standalone VO</span>
+        <span class="launch-icon">↗</span>
+      </button>
+    </div>
+
+    <!-- HARDWARE HEALTH AT BOTTOM OF SIDEBAR -->
+    <div class="sidebar-bottom">
+      <div class="sidebar-label">AVIONICS HEALTH MATRIX</div>
+      <div class="health-indicator-card">
+        <div class="health-led-row">
+          <span class="health-dot" id="sideHealthDot"></span>
+          <span class="health-label" id="sideHealth">Waiting for camera feed</span>
+        </div>
+        <div class="health-mini-grid">
+          <div class="sub-indicator"><span class="sub-dot ok"></span><span>BiSeNet</span></div>
+          <div class="sub-indicator"><span class="sub-dot ok"></span><span>A* Plan</span></div>
+          <div class="sub-indicator"><span class="sub-dot ok"></span><span>YOLOv8</span></div>
+          <div class="sub-indicator"><span class="sub-dot" id="dotVo"></span><span>VO Engine</span></div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN VIEWPORT STAGE -->
+  <main class="main">
+    <!-- DASHBOARD VIEW -->
+    <section class="page active" id="page-dashboard">
+      <!-- DASHBOARD SUBHEADER -->
+      <div class="page-head">
+        <div class="page-title-block">
+          <div class="title-with-badge">
+            <h1>Autonomous Perception & Navigation</h1>
+            <span class="tactical-badge live">
+              <span class="radar-dot"></span>
+              TELEMETRY LIVE
+            </span>
+          </div>
+          <p>Real-time BiSeNetV2 semantic terrain classification, A* path generation, and YOLOv8 safety surveillance.</p>
+        </div>
+        <div class="head-actions">
+          <div class="feed-filter-tags">
+            <span class="filter-tag active">3-FEED MATRIX</span>
+            <span class="filter-tag">100% HARDWARE SYNC</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- KEY METRICS BANNER (HUD TILES) -->
+      <div class="metric-row">
+        <article class="metric-card">
+          <div class="card-glow"></div>
+          <div class="metric-header">
+            <span class="metric-label">CAMERA SENSOR</span>
+            <span class="metric-status-tag" id="dashCameraTag">CAM-01</span>
+          </div>
+          <div class="metric-body">
+            <strong id="dashCamera" class="mono-digit">OFFLINE</strong>
+            <div class="metric-sub-row">
+              <span class="sub-metric" id="dashFps">0.0 FPS</span>
+              <span class="sub-metric-pill" id="feedFormat">MJPEG</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="metric-card">
+          <div class="card-glow"></div>
+          <div class="metric-header">
+            <span class="metric-label">PATH PLANNING</span>
+            <span class="metric-status-tag">A* ENGINE</span>
+          </div>
+          <div class="metric-body">
+            <strong id="dashPlanner" class="mono-digit">WAITING</strong>
+            <div class="metric-sub-row">
+              <span class="sub-metric" id="dashPath">0 path nodes</span>
+              <span class="sub-metric-pill">CLEARANCE: 16px</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="metric-card" id="cardHumanDetect">
+          <div class="card-glow"></div>
+          <div class="metric-header">
+            <span class="metric-label">SAFETY SURVEILLANCE</span>
+            <span class="metric-status-tag" id="dashHumanBadge">YOLOv8n</span>
+          </div>
+          <div class="metric-body">
+            <strong id="dashHuman" class="mono-digit text-emerald">CLEAR</strong>
+            <div class="metric-sub-row">
+              <span class="sub-metric" id="dashHumanMeta">0 people · --</span>
+              <span class="sub-metric-pill" id="humanSafeTag">PERIMETER SAFE</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="metric-card">
+          <div class="card-glow"></div>
+          <div class="metric-header">
+            <span class="metric-label">AUTONOMOUS COMMAND</span>
+            <span class="metric-status-tag">DRIVE ACTUATOR</span>
+          </div>
+          <div class="metric-body">
+            <strong id="dashCommand" class="mono-digit text-cyan">STOP</strong>
+            <div class="metric-sub-row">
+              <span class="sub-metric" id="dashCommandMeta">Planner waiting</span>
+              <span class="sub-metric-pill">THROTTLE: 55%</span>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <!-- VIDEO FEED SOURCE CONTROLLER -->
+      <article class="panel source-panel">
+        <div class="source-info-deck">
+          <div class="source-icon-wrap">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="23 7 16 12 23 17 23 7"></polygon>
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+            </svg>
+          </div>
+          <div>
+            <span class="overline">ACTIVE INPUT PIPELINE</span>
+            <h2 id="sourceName">Live ESP32 Stream</h2>
+            <p id="sourceDetail">Connecting to ESP32-CAM MJPEG source at http://192.168.4.1:81/stream</p>
+          </div>
+        </div>
+        <div class="source-actions">
+          <input id="videoInput" type="file" accept=".mp4,.avi,.mov,.mkv,.webm,.m4v,video/*" hidden>
+          <button class="hud-action-btn primary" id="addVideo">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+            <span>Load Recon Video</span>
+          </button>
+          <button class="hud-action-btn secondary" id="useLive">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M23 7l-7 5 7 5V7z"></path>
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+            </svg>
+            <span>Restore Live Camera</span>
+          </button>
+        </div>
+      </article>
+
+      <!-- PRIMARY 3-STREAM TELEMETRY VIEWPORTS -->
+      <div class="monitor-grid">
+        <!-- STREAM 1: RAW SENSOR FEED -->
+        <article class="panel monitor-card">
+          <div class="panel-head">
+            <div class="feed-title-wrap">
+              <span class="overline">SENSOR CH-01</span>
+              <h2>Raw Optical Sensor</h2>
+            </div>
+            <div class="feed-hud-badges">
+              <span class="live-badge"><i></i> RAW</span>
+            </div>
+          </div>
+          <div class="camera-wrap monitor-image hud-frame">
+            <div class="bracket-tl"></div><div class="bracket-tr"></div>
+            <div class="bracket-bl"></div><div class="bracket-br"></div>
+            <div class="crosshair-reticle"></div>
+            <img id="dashRawStream" src="/stream.mjpg?view=raw" alt="Live raw camera" loading="eager">
+            <span class="camera-tag top-left">CH-01 · LIVE OPTICAL</span>
+            <span class="camera-tag top-right mono-digit" id="rawResolution">640×480</span>
+            <div class="camera-bottom-hud">
+              <span class="hud-overlay-text">AUTO-EXPOSURE: ON</span>
+            </div>
+          </div>
+          <div class="mini-stats">
+            <span>PIPELINE: <b class="text-pure">DIRECT SENSOR</b></span>
+            <span>ENCODING: <b class="text-pure">MJPEG</b></span>
+            <span>FPS: <b id="rawFpsCounter" class="text-accent-cyan">--</b></span>
+          </div>
+        </article>
+
+        <!-- STREAM 2: SEMANTIC SEGMENTATION -->
+        <article class="panel monitor-card">
+          <div class="panel-head">
+            <div class="feed-title-wrap">
+              <span class="overline">NEURAL PERCEPTION</span>
+              <h2>BiSeNetV2 Terrain Segmentation</h2>
+            </div>
+            <div class="feed-hud-badges">
+              <span class="status-pill small"><i></i> AI INFERENCE</span>
+            </div>
+          </div>
+          <div class="camera-wrap monitor-image hud-frame">
+            <div class="bracket-tl"></div><div class="bracket-tr"></div>
+            <div class="bracket-bl"></div><div class="bracket-br"></div>
+            <div class="crosshair-reticle"></div>
+            <img id="dashSegStream" src="/stream.mjpg?view=segmentation" alt="Semantic segmentation" loading="eager">
+            <span class="camera-tag top-left">SEMANTIC OVERLAY</span>
+            <span class="camera-tag bottom-left mono-digit" id="segHumanOverlay">NO PERSON DETECTED</span>
+          </div>
+          <div class="mini-stats">
+            <span>TERRAIN: <b class="text-emerald">TRAVERSABLE</b></span>
+            <span>SKY-OVERRIDE: <b class="text-pure">BOTTOM 45%</b></span>
+            <span>MODEL: <b class="text-pure">BiSeNetV2</b></span>
+          </div>
+        </article>
+
+        <!-- STREAM 3: A* TRAJECTORY PLANNING -->
+        <article class="panel monitor-card">
+          <div class="panel-head">
+            <div class="feed-title-wrap">
+              <span class="overline">AUTONOMOUS GUIDANCE</span>
+              <h2>A* Path Trajectory</h2>
+            </div>
+            <div class="feed-hud-badges">
+              <span class="status-pill small"><i></i><span id="dashNavStatus">WAITING</span></span>
+            </div>
+          </div>
+          <div class="camera-wrap monitor-image hud-frame">
+            <div class="bracket-tl"></div><div class="bracket-tr"></div>
+            <div class="bracket-bl"></div><div class="bracket-br"></div>
+            <div class="crosshair-reticle"></div>
+            <img id="dashAstarStream" src="/stream.mjpg?view=astar" alt="A star route" loading="eager">
+            <span class="camera-tag top-left">A* LOCAL NAV</span>
+            <span class="camera-tag bottom-right mono-digit" id="dashPathOverlay">WAITING</span>
+          </div>
+          <div class="mini-stats">
+            <span>NAV: <b id="dashPathStatus" class="text-accent-cyan">WAITING</b></span>
+            <span>NODES: <b id="dashDistance" class="mono-digit text-pure">—</b></span>
+            <span>VECTOR: <b id="dashCommand2" class="text-emerald">STOP</b></span>
+          </div>
+        </article>
+      </div>
+
+      <!-- LOWER TELEMETRY SUITE (SAFETY RADAR + SUBSYSTEM MATRIX + RUN DIAGNOSTICS) -->
+      <div class="lower-grid">
+        <!-- RADAR & SAFETY PERCEPTION -->
+        <article class="panel human-panel" id="panelHumanSafety">
+          <div class="panel-head">
+            <div>
+              <span class="overline">PERIMETER SURVEILLANCE</span>
+              <h2>Safety Radar & Targets</h2>
+            </div>
+            <span class="clear-badge" id="humanChip">CLEAR</span>
+          </div>
+          <div class="human-main">
+            <div class="radar-scope">
+              <div class="radar-sweep"></div>
+              <div class="radar-cross"></div>
+              <div class="human-symbol">◎</div>
+            </div>
+            <div class="radar-content">
+              <strong id="humanTitle">Perimeter Secure</strong>
+              <p id="humanDetail">YOLOv8 target detection active. Automated safety interlock armed.</p>
+            </div>
+          </div>
+          <div class="two-metrics">
+            <div>
+              <span>CONFIRMED TARGETS</span>
+              <strong id="humanCount" class="mono-digit">0</strong>
+            </div>
+            <div>
+              <span>DETECTION CONFIDENCE</span>
+              <strong id="humanConfidence" class="mono-digit">--</strong>
+            </div>
+          </div>
+        </article>
+
+        <!-- SUBSYSTEM STATUS MATRIX -->
+        <article class="panel system-panel">
+          <div class="panel-head">
+            <div>
+              <span class="overline">HARDWARE BUS</span>
+              <h2>Subsystem Telemetry</h2>
+            </div>
+            <span class="clear-badge">NOMINAL</span>
+          </div>
+          <div class="health-list">
+            <div class="health-item">
+              <div class="subsystem-name">
+                <span class="sub-dot" id="dotCamSys"></span>
+                <span>Camera Stream (ESP32)</span>
+              </div>
+              <b id="healthCamera" class="mono-digit">Offline</b>
+            </div>
+            <div class="health-item">
+              <div class="subsystem-name">
+                <span class="sub-dot ok"></span>
+                <span>Neural Perception Engine</span>
+              </div>
+              <b id="healthPerception" class="mono-digit">Waiting</b>
+            </div>
+            <div class="health-item">
+              <div class="subsystem-name">
+                <span class="sub-dot ok"></span>
+                <span>A* Global Path Solver</span>
+              </div>
+              <b id="healthPlanner" class="mono-digit">Waiting</b>
+            </div>
+            <div class="health-item">
+              <div class="subsystem-name">
+                <span class="sub-dot ok"></span>
+                <span>PWM Motor Actuation Bridge</span>
+              </div>
+              <b id="healthMotor" class="mono-digit">Ready</b>
+            </div>
+          </div>
+        </article>
+
+        <!-- AUTONOMOUS MISSION CONTROL -->
+        <article class="panel mission-panel">
+          <div class="panel-head">
+            <div>
+              <span class="overline">TELEOPERATION & RUN</span>
+              <h2>Autonomous Mission</h2>
+            </div>
+            <span class="status-pill small"><i></i> ACTIVE</span>
+          </div>
+          <div class="mission-grid">
+            <div class="mission-cell">
+              <span>SOLVER STATE</span>
+              <strong id="missionPlanner" class="mono-digit">WAITING</strong>
+            </div>
+            <div class="mission-cell">
+              <span>WAYPOINTS</span>
+              <strong id="missionNodes" class="mono-digit">—</strong>
+            </div>
+            <div class="mission-cell">
+              <span>DRIVE VECTOR</span>
+              <strong id="missionCommand" class="mono-digit text-cyan">STOP</strong>
+            </div>
+            <div class="mission-cell">
+              <span>INPUT SOURCE</span>
+              <strong id="missionSource" class="mono-digit">CAMERA</strong>
+            </div>
+          </div>
+          <div class="mission-footer-actions">
+            <button class="wide-link" id="openVOSecondary">
+              <span>Launch Standalone Visual Odometry Engine</span>
+              <span class="arrow-ext">↗</span>
+            </button>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- GEOSPATIAL LOCAL MAP VIEW -->
+    <section class="page" id="page-map">
+      <div class="page-head">
+        <div class="page-title-block">
+          <div class="title-with-badge">
+            <h1>Geospatial Local Map & VO Overlay</h1>
+            <span class="status-pill" id="mapVoStatus"><i></i> WAITING</span>
+          </div>
+          <p>Select real-world geographic coordinates via OpenStreetMap to project metric Visual Odometry trajectories over satellite imagery.</p>
+        </div>
+      </div>
+
+      <!-- MAP ANCHORING CONTROLS -->
+      <div class="panel map-controls">
+        <div class="map-control-row">
+          <div class="map-search">
+            <span class="overline">GLOBAL RECONNAISSANCE GEOCODER</span>
+            <div class="map-search-line">
+              <input id="mapSearch" type="search" placeholder="Search coordinates, terrain sector or address...">
+              <button id="mapSearchBtn" class="hud-action-btn primary" type="button">
+                <span>Search</span>
+              </button>
+            </div>
+          </div>
+          <div class="map-actions">
+            <button id="mapSelectBtn" class="hud-action-btn primary" type="button">
+              <span class="crosshair-icon">✛</span>
+              <span>Select Area</span>
+            </button>
+            <button id="mapClearBtn" class="hud-action-btn secondary" type="button">
+              <span>Clear Anchor</span>
+            </button>
+          </div>
+        </div>
+        
+        <div class="map-help" id="mapHelp">Click <b>Select Area</b>, then click two opposite corners on the OpenStreetMap view to define the local mission bounding box.</div>
+        
+        <div class="map-control-row map-secondary-row">
+          <div class="heading-offset-control">
+            <label for="mapHeading">Local-Frame Heading Offset</label>
+            <div class="input-with-unit">
+              <input id="mapHeading" type="number" min="-180" max="180" step="1" value="0">
+              <span class="unit-deg">° DEG</span>
+            </div>
+          </div>
+          <div class="map-basemap-actions" aria-label="Basemap selector">
+            <span class="overline mr-2">BASEMAP LAYER:</span>
+            <div class="segmented-control">
+              <button id="mapOsmBtn" class="map-layer-button active" type="button">OpenStreetMap</button>
+              <button id="mapSatelliteBtn" class="map-layer-button" type="button">Esri World Satellite</button>
+            </div>
+            <span id="mapLayerStatus" class="map-layer-status">Street map · OpenStreetMap</span>
+          </div>
+          <div class="selection-readout-wrap">
+            <span class="overline">BOUNDING ANCHOR</span>
+            <span class="map-selection-readout mono-digit" id="mapSelectionReadout">No area selected</span>
+          </div>
+          <button id="mapApplyBtn" class="hud-action-btn primary" type="button" disabled>
+            <span>Apply Geographic Anchor</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- PRIMARY INTERACTIVE GEOGRAPHIC MAP -->
+      <div class="panel geographic-map-panel">
+        <div class="panel-head">
+          <div class="feed-title-wrap">
+            <span class="overline">GLOBAL CARTOGRAPHY</span>
+            <h2>Tactical Area Map</h2>
+          </div>
+          <span class="map-overlay-status" id="mapOverlayStatus">● Waiting for geographic anchor</span>
+        </div>
+        <div id="geographicMap" class="geographic-map" aria-label="Interactive OpenStreetMap and satellite map"></div>
+      </div>
+
+      <!-- KINEMATIC POSE TELEMETRY ROW -->
+      <div class="metric-row">
+        <article class="metric-card">
+          <span class="metric-label">POSE X</span>
+          <strong id="mapPoseX" class="mono-digit">—</strong>
+          <small class="sub-metric">LOCAL METRES</small>
+        </article>
+        <article class="metric-card">
+          <span class="metric-label">POSE Y</span>
+          <strong id="mapPoseY" class="mono-digit">—</strong>
+          <small class="sub-metric">LOCAL METRES</small>
+        </article>
+        <article class="metric-card">
+          <span class="metric-label">AZIMUTH / YAW</span>
+          <strong id="mapYaw" class="mono-digit">—</strong>
+          <small class="sub-metric">DEGREES</small>
+        </article>
+        <article class="metric-card">
+          <span class="metric-label">SURVEYED COVERAGE</span>
+          <strong id="mapCoverage" class="mono-digit">—</strong>
+          <small class="sub-metric">METRES SQUARED (m²)</small>
+        </article>
+        <article class="metric-card">
+          <span class="metric-label">MISSION WAYPOINT</span>
+          <strong id="mapWaypoint" class="mono-digit">—/—</strong>
+          <small class="sub-metric">ACTIVE SEGMENT</small>
+        </article>
+      </div>
+
+      <!-- LOCAL VO TRAJECTORY & RECON METRICS -->
+      <div class="monitor-grid split-geo-grid">
+        <article class="panel monitor-card">
+          <div class="panel-head">
+            <div>
+              <span class="overline">SATELLITE ALIGNMENT</span>
+              <h2>Visual Odometry Trajectory</h2>
+            </div>
+            <span class="live-badge"><i></i> VO REALTIME</span>
+          </div>
+          <div class="vo-status-strip">
+            <span id="mapVoStatusSecondary" class="map-overlay-status warn">● VO WAITING FOR MOTION</span>
+          </div>
+          <div id="localVoMap" class="local-vo-map hud-frame" aria-label="Satellite map with visual odometry trajectory">
+            <div class="bracket-tl"></div><div class="bracket-tr"></div>
+            <div class="bracket-bl"></div><div class="bracket-br"></div>
+            <span class="camera-tag top-left">SATELLITE · VO TRAJECTORY</span>
+          </div>
+        </article>
+
+        <article class="panel geo-recon-panel">
+          <div class="recon-block">
+            <span class="overline">ROUTE SEGMENTS STATUS</span>
+            <h2>Waypoints & Obstacle Navigation</h2>
+            <div id="mapSegments" class="recon-list"><p class="text-muted">No route loaded.</p></div>
+          </div>
+          <div class="recon-divider"></div>
+          <div class="recon-block">
+            <span class="overline">SURVIVOR CONFIRMATION</span>
+            <h2>Detected Person Targets</h2>
+            <div id="mapSurvivors" class="recon-list"><p class="text-muted">None confirmed (need 3+ detections).</p></div>
+          </div>
+        </article>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- SAFETY CRITICAL EMERGENCY STOP MODAL -->
+<div class="modal-backdrop" id="stopModal" hidden>
+  <div class="stop-modal hud-frame">
+    <div class="stop-hazard-header">
+      <div class="stop-sign">
+        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"></polygon>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+      </div>
+      <h2>CONFIRM EMERGENCY BRAKE</h2>
+    </div>
+    <div class="modal-body-content">
+      <p>This action will immediately transmit a <strong>HARD STOP</strong> sequence to the ESP32 motor controller and disengage autonomous driving. Perception sensors and telemetry streams will remain active.</p>
+    </div>
+    <div class="modal-action-row">
+      <button id="cancelStop" class="modal-btn secondary">Cancel Operation</button>
+      <button id="confirmStop" class="modal-btn danger">ENGAGE EMERGENCY STOP</button>
+    </div>
+  </div>
+</div>
+
+<!-- SYSTEM TOAST FEEDBACK -->
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- LEAFLET AND APPLICATION LOGIC -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/app.js?v=22"></script>
+</body>
+</html>
