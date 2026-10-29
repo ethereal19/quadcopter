@@ -128,8 +128,8 @@ class PipelineManager:
                 ))
 
                 # Read frame 0
-                frame = self.reader.read_frame()
-                if frame is not None:
+                ok, frame, f_idx = self.reader.read_frame()
+                if ok and frame is not None:
                     self.frame_idx = 1
                     self.last_frame_bgr = frame
                     self.last_annotated_bgr = self._process_frame_unlocked(frame, 1)
@@ -183,11 +183,11 @@ class PipelineManager:
         with self.lock:
             if self.reader is None:
                 return False
-            frame = self.reader.read_frame()
-            if frame is None:
+            ok, frame, f_idx = self.reader.read_frame()
+            if not ok or frame is None:
                 self.is_playing = False
                 return False
-            self.frame_idx = self.reader.current_frame_idx
+            self.frame_idx = f_idx
             self.last_frame_bgr = frame
             self.last_annotated_bgr = self._process_frame_unlocked(frame, self.frame_idx)
             if self.frame_idx % 8 == 0:
@@ -197,15 +197,15 @@ class PipelineManager:
     def _update_astar_unlocked(self):
         """Run A* path planner on current grid."""
         try:
-            path, status = astar_search(
+            res = astar_search(
                 self.grid,
                 self.grid_start,
                 self.grid_goal,
                 allow_diagonal=True,
-                allow_unknown=False
+                allow_unknown=True
             )
-            self.astar_path = path or []
-            self.astar_status = status
+            self.astar_path = res.path or []
+            self.astar_status = "PATH_FOUND" if res.found else ("NO_PATH: " + res.status_message)
         except Exception as e:
             self.astar_path = []
             self.astar_status = f"ERROR: {e}"
@@ -222,8 +222,8 @@ class PipelineManager:
             self.grid.set_cell(self.grid_start[0], self.grid_start[1], OccupancyGrid.CELL_FREE, hit_count=5)
 
             if self.reader is not None:
-                frame = self.reader.read_frame()
-                if frame is not None:
+                ok, frame, f_idx = self.reader.read_frame()
+                if ok and frame is not None:
                     self.frame_idx = 1
                     self.last_frame_bgr = frame
                     self.last_annotated_bgr = self._process_frame_unlocked(frame, 1)
@@ -411,8 +411,8 @@ def control():
         with pipeline.lock:
             if pipeline.reader is not None:
                 pipeline.reader.seek(target)
-                frame = pipeline.reader.read_frame()
-                if frame is not None:
+                ok, frame, f_idx = pipeline.reader.read_frame()
+                if ok and frame is not None:
                     pipeline.frame_idx = target
                     pipeline.last_frame_bgr = frame
                     pipeline.last_annotated_bgr = pipeline._process_frame_unlocked(frame, target)
@@ -423,7 +423,7 @@ def control():
 @app.route("/api/samples", methods=["GET"])
 def list_samples():
     samples = []
-    for fn in ["sample_recon.mp4", "sample_recon_curved.mp4", "sample_recon_loop.mp4"]:
+    for fn in ["sample_recon.mp4", "sample_recon_curved.mp4", "sample_recon_loop.mp4", "sample_drone_recon.mp4"]:
         p = DATA_DIR / fn
         if p.exists():
             desc = "Straight Recon Corridor (120 frames)"
@@ -431,6 +431,8 @@ def list_samples():
                 desc = "Obstacle S-Curve Avoidance (120 frames)"
             elif "loop" in fn:
                 desc = "360° Loop Closure Circuit (160 frames)"
+            elif "drone" in fn:
+                desc = "Nadir Aerial SAR Drone Recon (160 frames)"
             samples.append({
                 "filename": fn,
                 "name": fn.replace(".mp4", "").replace("_", " ").title(),

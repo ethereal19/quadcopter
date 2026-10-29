@@ -6,3 +6,5 @@ __pycache__/
 .idea/
 .vscode/
 .pytest_cache/
+resqnav_web/uploads/
+

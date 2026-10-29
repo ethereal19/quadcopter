@@ -373,22 +373,22 @@ class DashboardServer:
     @staticmethod
     def _render_vo_path(trajectory, width=960, height=540):
         """Render only the live estimated trajectory; no feature dots/flow lines."""
-        canvas = np.full((height, width, 3), (13, 19, 37), dtype=np.uint8)
+        canvas = np.full((height, width, 3), (248, 250, 252), dtype=np.uint8)
         margin = 55
         x0, x1 = margin, width - margin
         y0, y1 = margin, height - margin
 
         # Subtle engineering grid.
         for x in np.linspace(x0, x1, 9).astype(int):
-            cv2.line(canvas, (x, y0), (x, y1), (31, 42, 66), 1)
+            cv2.line(canvas, (x, y0), (x, y1), (226, 232, 240), 1)
         for y in np.linspace(y0, y1, 7).astype(int):
-            cv2.line(canvas, (x0, y), (x1, y), (31, 42, 66), 1)
-        cv2.rectangle(canvas, (x0, y0), (x1, y1), (55, 68, 94), 1)
+            cv2.line(canvas, (x0, y), (x1, y), (226, 232, 240), 1)
+        cv2.rectangle(canvas, (x0, y0), (x1, y1), (203, 213, 225), 1)
 
         points = np.asarray(trajectory, dtype=np.float64) if trajectory else np.empty((0, 3))
         if len(points) == 0:
             cv2.putText(canvas, "WAITING FOR VO TRAJECTORY", (margin + 18, height // 2),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.55, (145, 157, 180), 1, cv2.LINE_AA)
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.55, (100, 116, 139), 1, cv2.LINE_AA)
             return canvas
 
         # Use local X/Z motion from the actual VO trajectory. Keep the origin visible.
@@ -410,20 +410,20 @@ class DashboardServer:
 
         pts = np.array([pixel(px, pz) for px, pz in zip(x, z)], dtype=np.int32).reshape(-1, 1, 2)
         if len(pts) > 1:
-            cv2.polylines(canvas, [pts], False, (70, 220, 120), 3, cv2.LINE_AA)
+            cv2.polylines(canvas, [pts], False, (199, 132, 2), 3, cv2.LINE_AA)
 
         current = tuple(pts[-1, 0])
         cv2.rectangle(canvas, (current[0] - 5, current[1] - 5), (current[0] + 5, current[1] + 5), (255, 255, 255), -1)
-        cv2.rectangle(canvas, (current[0] - 5, current[1] - 5), (current[0] + 5, current[1] + 5), (70, 220, 120), 2)
+        cv2.rectangle(canvas, (current[0] - 5, current[1] - 5), (current[0] + 5, current[1] + 5), (199, 132, 2), 2)
 
         cv2.putText(canvas, "VISUAL ODOMETRY · LIVE PATH", (18, 28),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.52, (235, 239, 246), 1, cv2.LINE_AA)
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.52, (15, 23, 42), 1, cv2.LINE_AA)
         cv2.putText(canvas, f"{len(points)} POSES", (18, 49),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.36, (120, 220, 150), 1, cv2.LINE_AA)
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.36, (2, 132, 199), 1, cv2.LINE_AA)
         cv2.putText(canvas, "START", (x0 + 6, y1 - 8),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.34, (150, 162, 184), 1, cv2.LINE_AA)
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.34, (100, 116, 139), 1, cv2.LINE_AA)
         cv2.putText(canvas, "ROVER", (current[0] + 9, current[1] + 4),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.34, (120, 220, 150), 1, cv2.LINE_AA)
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.34, (2, 132, 199), 1, cv2.LINE_AA)
         return canvas
 
     def _vo_worker(self):
@@ -588,3 +588,34 @@ class DashboardServer:
         self.http_server.server_close()
         self.thread.join(timeout=1.0)
         self.upload_directory.cleanup()
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="ResQNav Tactical Ground Control Station (GCS)")
+    parser.add_argument("--host", default="0.0.0.0", help="Host address to bind to (default: 0.0.0.0)")
+    parser.add_argument("--port", type=int, default=8080, help="Port to listen on (default: 8080)")
+    parser.add_argument("--source", default="0", help="Camera index, video file, or RTSP stream")
+    parser.add_argument("--dry-run", action="store_true", default=True, help="Simulate rover movements without physical motors")
+    args = parser.parse_args()
+
+    print("=" * 60)
+    print("  ResQNav Tactical Ground Control Station (GCS)")
+    print(f"  Listening on: http://localhost:{args.port}")
+    print("=" * 60)
+
+    server = DashboardServer(
+        host=args.host,
+        port=args.port,
+        dry_run=args.dry_run,
+        initial_source=args.source,
+    )
+    server.start()
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("\nShutting down server...")
+        server.stop()
+

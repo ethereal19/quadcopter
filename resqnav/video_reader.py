@@ -65,6 +65,14 @@ class VideoReader:
     def duration_seconds(self) -> float:
         return self._frame_count / self._fps if self._fps > 0 else 0.0
 
+    @property
+    def current_frame_idx(self) -> int:
+        return self._current_idx
+
+    def seek(self, target_idx: int) -> bool:
+        """Alias for seek_frame."""
+        return self.seek_frame(target_idx)
+
     def get_metadata(self) -> Dict[str, Union[int, float, str]]:
         """Return a structured summary of video metadata."""
         return {
@@ -257,3 +265,21 @@ def generate_synthetic_pov_video(
 
     writer.release()
     return output_path
+
+
+def generate_synthetic_drone_video(
+    output_path: Union[str, Path] = "data/sample_drone_recon.mp4",
+    num_frames: int = 160,
+    width: int = 640,
+    height: int = 480,
+    fps: int = 25,
+    include_hud: bool = False,
+    seed: int = 101,
+) -> Path:
+    """Generate a realistic top-down aerial drone reconnaissance video for SAR simulation."""
+    import sys
+    project_root = Path(__file__).resolve().parents[1]
+    if str(project_root) not in sys.path:
+        sys.path.insert(0, str(project_root))
+    from tools.generate_drone_video import generate_synthetic_drone_video as _gen
+    return _gen(output_path, num_frames, width, height, fps, include_hud, seed)

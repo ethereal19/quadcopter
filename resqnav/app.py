@@ -409,9 +409,14 @@ if app_mode == "Mission Control (Panels A, B, C)":
                 video_path = Path("data/sample_recon.mp4")
                 st.session_state.active_video_name = "Corridor Rubble Recon"
                 st.rerun()
-            if st.button("⛰ Cavern Winding (S-Curve)", use_container_width=True, help="Winding avoidance path"):
+            q3, q4 = st.columns(2)
+            if q3.button("⛰ Cavern Winding (S-Curve)", use_container_width=True, help="Winding avoidance path"):
                 video_path = Path("data/sample_recon_curved.mp4")
                 st.session_state.active_video_name = "Cavern Winding Recon"
+                st.rerun()
+            if q4.button("🚁 Aerial Drone Recon", use_container_width=True, help="Top-down Nadir aerial SAR flight"):
+                video_path = Path("data/sample_drone_recon.mp4")
+                st.session_state.active_video_name = "Nadir Aerial Drone Recon"
                 st.rerun()
 
         active_title = st.session_state.get("active_video_name", video_path.name if video_path else "No Video Selected")
